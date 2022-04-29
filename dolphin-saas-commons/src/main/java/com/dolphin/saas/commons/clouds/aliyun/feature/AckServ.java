@@ -291,17 +291,4 @@ public class AckServ extends MasterServ implements Frame {
         }
         return kubAddr;
     }
-//
-//    public static void main(String[] args) {
-//        try {
-//            Map<String, Object> para = new HashMap<>();
-//            para.put("clusterName", "海豚工程-4525850");
-//            para.put("region","cn-beijing");
-//            AckServ ackServ = new AckServ("AKIDWsxmKdfRwA7nHUQ5TaQzHI3YnlTu4wXr", "5sOedKkunPkoc9PN5WgYAVYKp3zf4D4e", para);
-//            System.out.println(ackServ.getCreateStatus());
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
 }
