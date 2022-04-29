@@ -1,0 +1,30 @@
+server:
+  port: 8099
+logging:
+  level:
+    springfox: error
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  #数据库连接配置
+  datasource:
+    # 环境变量的玩法
+    url: ${MYSQL_ADDRESS}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    hikari:
+      max-lifetime: 120000
+      connection-test-query: SELECT 1
+      maximum-pool-size: 20
+      minimum-idle: 3
+
+  redis:
+    # 环境变量的玩法
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    database: ${REDIS_DATABASE}
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

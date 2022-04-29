@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  finalizers:
+    - kubernetes.io/pv-protection
+  labels:
+    alicloud-pvname: test-xxxx
+  name: test-xxxx
+spec:
+  accessModes:
+    - ReadWriteMany
+  capacity:
+    storage: 300Gi
+  csi:
+    driver: nasplugin.csi.alibabacloud.com
+    volumeAttributes:
+      path: /
+      server: 1024748c93-xjo64.cn-beijing.nas.aliyuncs.com
+      vers: '4.0'
+    volumeHandle: test-xxxx
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nas
+  volumeMode: Filesystem
+status:
+  phase: Available

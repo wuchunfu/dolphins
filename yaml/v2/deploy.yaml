@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dolphin-deploy-jobs
+  namespace: devops
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: dolphin-deploy-jobs
+    spec:
+      containers:
+        - name: dolphin-deploy-jobs
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-deploy-agent:deploy-v11
+          env:
+            - name: CLOUD
+              value: 归属云
+            - name: BUY_MODE
+              value: 购买的企业服务类型
+            - name: K8S_ADDR
+              value: k8s的实际地址
+            - name: KUBE_CONFIG
+              value: 秘钥信息kubconfig
+            - name: SC_NAME
+              value: dolphins-v1-sc
+            - name: PGROUP_ID
+              value: CFS/NFS的策略分组ID
+            - name: SUBNET_ID
+              value: 子网ID
+            - name: VPC_ID
+              value: VPC的ID
+            - name: ZONE_ID
+              value: zone的ID
+            - name: REGION_ID
+              value: REGION的ID
+            - name: MYSQL_ROOT_PASSWORD
+              value: 01b3f378798d72bf73c8050d76707e0a
+            - name: REDIS_PASSWORD
+              value: 01b3f378798d72bf73c8050d76707e0a
+            - name: GLOBAL_PASSWORD
+              value: 01b3f378798d72bf73c8050d76707e0a
+            - name: YAPI_DB_PASSWORD
+              value: 01b3f378798d72bf73c8050d76707e0a
+            - name: GITLAB_ADDRESS
+              value: "gitlab.aidolphins.com"
+            - name: GRAFANA_ADDRESS
+              value: "grafana.aidolphins.com"
+            - name: HFISH_ADDRESS
+              value: "hifish.aidolphins.com"
+            - name: JUMPSERVER_ADDRESS
+              value: "jumper.aidolphins.com"
+            - name: METERSPHERE_ADDRESS
+              value: "metersphere.aidolphins.com"
+            - name: SKYWALKING_ADDRESS
+              value: "skywalking.aidolphins.com"
+            - name: SONAR_ADDRESS
+              value: "sonar.aidolphins.com"
+            - name: YAPI_ADDRESS
+              value: "yapi.aidolphins.com"
+            - name: NEXUS_ADDRESS
+              value: "nexus.aidolphins.com"
+            - name: DOCKER_ADDRESS
+              value: "docker.aidolphins.com"
+            - name: JENKINS_ADDRESS
+              value: "jenkins.aidolphins.com"
+            - name: SENTRY_ADDRESS
+              value: "sentry.aidolphins.com"
+            - name: ZIPKIN_ADDRESS
+              value: ""
+            - name: ES_ADDRESS
+              value: ""
+            - name: CLUSTER_ID
+              value: ""
+            - name: CLUSTER_INSTANCE_ID
+              value: ""
+            - name: DOCKER_HUB
+              value: ""
+            - name: DOCKER_USERNAME
+              value: ""
+            - name: DOCKER_PASSWORD
+              value: ""
+          volumeMounts:
+            - name: command-docker
+              mountPath: /usr/local/bin/kubectl
+      restartPolicy: Never
+      volumes:
+        - name: command-docker
+          hostPath:
+            path: /usr/bin/kubectl

@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dolphin-config-jobs
+  namespace: devops
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: dolphin-config-jobs
+    spec:
+      containers:
+        - name: dolphin-config-jobs
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-deploy-agent:config-v10
+          env:
+            - name: JENKINS_ADDRESS
+              value: "http://<JENKINS_URL>"
+            - name: JENKINS_USERNAME
+              value: "user"
+            - name: JENKINS_PASSWORD
+              value: "11223"
+            - name: SONAR_TOKEN
+              value: "dddd"
+            - name: GITLAB_PASSWORD
+              value: "12222"
+            - name: GITLAB_USERNAME
+              value: "2212"
+            - name: DOCKER_PASSWORD
+              value: "admin"
+            - name: DOCKER_USERNAME
+              value: "admin"
+      restartPolicy: Never

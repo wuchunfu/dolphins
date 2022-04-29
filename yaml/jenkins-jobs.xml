@@ -1,0 +1,155 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.42">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@1.9.3"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@1.9.3">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description>dolphins</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>GITLAB_ADDR</name>
+          <description>git地址</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>GIT_BRANCH</name>
+          <description>分支</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>JOB_NAME</name>
+          <description>工程名</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>JOB_KEYS</name>
+          <description>工程的KEY</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SONAR_TOKEN</name>
+          <description>sonar的token值</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>IMAGE_NAMESPACE</name>
+          <description>namespace名称</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>IMAGE_NAME</name>
+          <description>镜像名称</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>IMAGE_VERSION</name>
+          <description>发布版本</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REGISTRY_ADDR</name>
+          <description>仓库地址</description>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>STORE_AUTH</name>
+          <description>仓库秘钥</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>MODULE_NAME</name>
+          <description>模块名</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_FILE_URL</name>
+          <description>Dockerfile地址</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>NGINX_CONF</name>
+          <description>nginx配置</description>
+          <defaultValue>无</defaultValue>
+          <trim>false</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2640.v00e79c8113de">
+    <script>pipeline {
+  agent any
+
+  stages {
+    stage(&apos;代码拉取&apos;) {
+        steps {
+            git branch: env.GIT_BRANCH, credentialsId: &apos;gitlab&apos;, url: env.GITLAB_ADDR
+        }
+    }
+    stage(&apos;质量检测&apos;) {
+      steps {
+        ws("${WORKSPACE}/${JOB_NAME}/") {
+          script {
+            scannerHome = tool 'SonarQube'
+          }
+          withSonarQubeEnv('dolphins-sonar') {
+            sh "${scannerHome}/bin/sonar-scanner " +
+            "-Dsonar.projectKey=" + env.JOB_NAME + ":" +env.IMAGE_VERSION + " "+
+            "-Dsonar.projectName=" + env.JOB_NAME + " " +
+            "-Dsonar.projectVersion=" + env.IMAGE_VERSION + " " +
+            "-Dsonar.sourceEncoding=UTF-8 " +
+            "-Dsonar.scm.disabled=true " +
+            "-Dsonar.projectBaseDir=../ " +
+            "-Dsonar.java.binaries=. " +
+            "-Dsonar.sources=./ "+
+            "-Dsonar.login=" + env.SONAR_TOKEN
+          }
+        }
+      }
+    }
+    stage(&apos;构建镜像&apos;) {
+      steps {
+        script {
+          if (env.DOCKER_FILE_URL != "无"){
+            sh "curl " + env.DOCKER_FILE_URL + " -o Dockerfile"
+          }
+          if (env.NGINX_CONF != "无"){
+            writeFile file: "nginx.conf", text: env.NGINX_CONF, encoding: "UTF-8"
+          }
+          def app = ""
+          if (env.MODULE_NAME != "无"){
+            app = docker.build(env.REGISTRY_ADDR+ "/" +env.IMAGE_NAMESPACE+"/"+env.MODULE_NAME+":"+env.IMAGE_VERSION, "--build-arg MODULE="+env.MODULE_NAME+" .");
+          }else{
+            app = docker.build(env.REGISTRY_ADDR+ "/" +env.IMAGE_NAMESPACE+"/"+env.IMAGE_NAME+":"+env.IMAGE_VERSION);
+          }
+          docker.withRegistry("https://"+env.REGISTRY_ADDR, env.STORE_AUTH) {
+            app.push()
+          }
+        }
+      }
+    }
+  }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

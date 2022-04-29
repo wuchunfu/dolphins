@@ -1,0 +1,29 @@
+server:
+  port: 80
+logging:
+  level:
+    springfox: error
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  #数据库连接配置
+  datasource:
+    url: jdbc:mysql://10.56.1.16:3306/dolphin_saas?characterEncoding=utf-8&useSSL=false
+    #    url: jdbc:mysql://dolphin_mysql:3306/dolphin_saas?characterEncoding=utf-8&useSSL=false
+    username: root
+    password: 5a6d900ed22453c2ad21905b6f65c745
+    hikari:
+      max-lifetime: 5000000
+      connection-test-query: SELECT 1
+      maximum-pool-size: 20
+      minimum-idle: 3
+
+  redis:
+    host: 10.56.1.17
+    port: 6379
+    database: 4
+#    port: 6379
+#    database: 4
+#    host: dolphin_redis
+#    password: dolphinredis9527
