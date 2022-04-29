@@ -1,0 +1,669 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: devops
+  name: jumpserver-jms-core
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-core
+data:
+  config.yml: ""
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: devops
+  name: jumpserver-jms-web
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-web
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name  _;
+        server_tokens off;
+
+        client_max_body_size 4096m;  # 录像及文件上传大小限制
+
+        location /ui/ {
+            try_files $uri / /index.html;
+            alias /opt/lina/;
+        }
+        location /luna/ {
+            try_files $uri / /index.html;
+            alias /opt/luna/;
+        }
+        location /media/ {
+            add_header Content-Encoding gzip;
+            root /opt/jumpserver/data/;
+        }
+        location /static/ {
+            root /opt/jumpserver/data/;
+        }
+        location /koko/ {
+            proxy_pass http://jumpserver-jms-koko:5000;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /lion/ {
+            proxy_pass http://jumpserver-jms-lion:8081;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_request_buffering off;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $http_connection;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /ws/ {
+            proxy_pass http://jumpserver-jms-core:8070;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /api/ {
+            proxy_pass http://jumpserver-jms-core:8080;
+            proxy_buffering off;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location /core/ {
+            proxy_pass http://jumpserver-jms-core:8080;
+            proxy_buffering off;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+        location / {
+            rewrite ^/(.*)$ /ui/$1 last;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: jumpserver-jms-core
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-core
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: web
+      protocol: TCP
+      name: web
+    - port: 8070
+      targetPort: ws
+      protocol: TCP
+      name: ws
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  selector:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: jumpserver-jms-koko
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-koko
+spec:
+  type: NodePort
+  ports:
+    - port: 5000
+      targetPort: web
+      protocol: TCP
+      name: web
+    - port: 2222
+      targetPort: ssh
+      protocol: TCP
+      name: ssh
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  selector:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-koko
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: jumpserver-jms-lion
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-lion
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: web
+      protocol: TCP
+      name: web
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  selector:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-lion
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: jumpserver-jms-web
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-web
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: web
+      protocol: TCP
+      name: web
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  selector:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-web
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: devops
+  name: jumpserver-jms-celery
+  labels:
+    app.jumpserver.org/name: jms-celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jumpserver
+      app.jumpserver.org/name: jms-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-core
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      serviceAccountName: default
+      containers:
+        - name: jms-celery
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-core:v1
+          imagePullPolicy: IfNotPresent
+          args: ["start", "task"]
+          env:
+            - name: SECRET_KEY
+              value: "GxrLH7rewfsRN8B9Zl6MEGD50Uou4LF6UVsEIayGMhYll8dqmn"
+            - name: BOOTSTRAP_TOKEN
+              value: "ilR8RvAbK7lgRTxs"
+            - name: DEBUG
+              value: "false"
+            - name: LOG_LEVEL
+              value: "ERROR"
+            - name: SESSION_EXPIRE_AT_BROWSER_CLOSE
+              value: "true"
+            - name: HTTP_LISTEN_PORT
+              value: "8080"
+            - name: WS_LISTEN_PORT
+              value: "8070"
+            - name: DB_ENGINE
+              value: "mysql"
+            - name: DB_HOST
+              value: "dolphin-mysql-service"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: "<MYSQL_ROOT_PASSWORD>"
+            - name: DB_NAME
+              value: "jumpserver"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - /opt/jumpserver/utils/check_celery.sh
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: "/opt/jumpserver/configur.yml"
+              name: "jms-core-configur"
+              subPath: "configur.yml"
+            - mountPath: "/opt/jumpserver/data"
+              name: "jms-core-data"
+              subPath: jmsCoreData
+            - mountPath: "/opt/jumpserver/logs"
+              name: "jms-core-logs"
+              subPath: jmsCoreLogs
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: 'jumpserver-jms-core'
+          name: "jms-core-configur"
+        - persistentVolumeClaim:
+            claimName: dolphin-master-service
+          name: "jms-core-data"
+        - persistentVolumeClaim:
+            claimName: dolphin-slave-service
+          name: "jms-core-logs"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: devops
+  name: jumpserver-jms-core
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jumpserver
+      app.jumpserver.org/name: jms-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-core
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      serviceAccountName: default
+      containers:
+        - name: jms-core
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-core:v1
+          imagePullPolicy: IfNotPresent
+          args: ["start", "web"]
+          env:
+            - name: SECRET_KEY
+              value: "GxrLH7rewfsRN8B9Zl6MEGD50Uou4LF6UVsEIayGMhYll8dqmn"
+            - name: BOOTSTRAP_TOKEN
+              value: "ilR8RvAbK7lgRTxs"
+            - name: DEBUG
+              value: "false"
+            - name: LOG_LEVEL
+              value: "ERROR"
+            - name: SESSION_EXPIRE_AT_BROWSER_CLOSE
+              value: "true"
+            - name: HTTP_LISTEN_PORT
+              value: "8080"
+            - name: WS_LISTEN_PORT
+              value: "8070"
+            - name: DB_ENGINE
+              value: "mysql"
+            - name: DB_HOST
+              value: "dolphin-mysql-service"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: "<MYSQL_ROOT_PASSWORD>"
+            - name: DB_NAME
+              value: "jumpserver"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+          ports:
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+            - name: ws
+              containerPort: 8070
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /api/health/
+              port: web
+          readinessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /api/health/
+              port: web
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: "/opt/jumpserver/configur.yml"
+              name: "jms-core-configur"
+              subPath: "configur.yml"
+            - mountPath: "/opt/jumpserver/data"
+              name: "jms-core-data"
+              subPath: jmsCoreData
+            - mountPath: "/opt/jumpserver/logs"
+              name: "jms-core-logs"
+              subPath: jmsCoreLogs
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: 'jumpserver-jms-core'
+          name: "jms-core-configur"
+        - persistentVolumeClaim:
+            claimName: dolphin-master-service
+          name: "jms-core-data"
+        - persistentVolumeClaim:
+            claimName: dolphin-slave-service
+          name: "jms-core-logs"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: devops
+  name: jumpserver-jms-koko
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-koko
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jumpserver
+      app.jumpserver.org/name: jms-koko
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-koko
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      serviceAccountName: default
+      containers:
+        - name: jms-koko
+          securityContext:
+            privileged: true
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-koko:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: web
+              containerPort: 5000
+              protocol: TCP
+            - name: ssh
+              containerPort: 2222
+              protocol: TCP
+          env:
+            - name: CORE_HOST
+              value: "http://jumpserver-jms-core:8080"
+            - name: BOOTSTRAP_TOKEN
+              value: "ilR8RvAbK7lgRTxs"
+            - name: LOG_LEVEL
+              value: "ERROR"
+            - name: SSHD_PORT
+              value: "2222"
+            - name: HTTPD_PORT
+              value: "5000"
+            - name: REUSE_CONNECTION
+              value: "false"
+            - name: SHARE_ROOM_TYPE
+              value: "redis"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+          livenessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /koko/health/
+              port: web
+          readinessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /koko/health/
+              port: web
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: "/opt/koko/data"
+              name: "jms-koko-data"
+              subPath: "jms-koko-data"
+      restartPolicy: Always
+      volumes:
+        - persistentVolumeClaim:
+            claimName: dolphin-share-service
+          name: "jms-koko-data"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: devops
+  name: jumpserver-jms-lion
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-lion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jumpserver
+      app.jumpserver.org/name: jms-lion
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-lion
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      serviceAccountName: default
+      containers:
+        - name: jms-lion
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-lion:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: web
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: CORE_HOST
+              value: "http://jumpserver-jms-core:8080"
+            - name: BOOTSTRAP_TOKEN
+              value: "ilR8RvAbK7lgRTxs"
+            - name: LOG_LEVEL
+              value: "ERROR"
+            - name: HTTPD_PORT
+              value: "8081"
+            - name: JUMPSERVER_ENABLE_FONT_SMOOTHING
+              value: "true"
+            - name: JUMPSERVER_COLOR_DEPTH
+              value: "32"
+            - name: SHARE_ROOM_TYPE
+              value: "redis"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+          livenessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /lion/health/
+              port: web
+          readinessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /lion/health/
+              port: web
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: "/opt/lion/data"
+              name: "jms-lion-data"
+              subPath: "jms-lion-data"
+      restartPolicy: Always
+      volumes:
+        - persistentVolumeClaim:
+            claimName: dolphin-share-service
+          name: "jms-lion-data"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: devops
+  name: jumpserver-jms-web
+  labels:
+    app.kubernetes.io/name: jumpserver
+    app.jumpserver.org/name: jms-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jumpserver
+      app.jumpserver.org/name: jms-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-web
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      serviceAccountName: default
+      containers:
+        - name: jms-web
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-web:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: web
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /api/health/
+              port: web
+          readinessProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /api/health/
+              port: web
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: "/etc/nginx/sites-enabled/jumpserver.conf"
+              name: "jms-web-configur"
+              subPath: "default.conf"
+            - mountPath: "/opt/jumpserver/data"
+              name: "jms-core-data"
+              subPath: 'jmsCoreData'
+            - mountPath: "/var/log/web"
+              name: "jms-web-logs"
+              subPath: 'jmsWebLogs'
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: 'jumpserver-jms-web'
+          name: "jms-web-configur"
+        - persistentVolumeClaim:
+            claimName: 'dolphin-master-service'
+          name: "jms-core-data"
+        - persistentVolumeClaim:
+            claimName: 'dolphin-slave-service'
+          name: "jms-web-logs"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  namespace: devops
+  name: jumpserver-jms-init-db
+  labels:
+    app.jumpserver.org/name: jms-init-db
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jumpserver
+        app.jumpserver.org/name: jms-core
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-mysql-service 3306 && exit 0 || sleep 5; done; exit 1' ]
+      containers:
+        - name: jms-init-db
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jumpserver-core:v1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - "-c"
+            - cd /opt/jumpserver && ./jms upgrade_db
+          env:
+            - name: SECRET_KEY
+              value: "GxrLH7rewfsRN8B9Zl6MEGD50Uou4LF6UVsEIayGMhYll8dqmn"
+            - name: BOOTSTRAP_TOKEN
+              value: "ilR8RvAbK7lgRTxs"
+            - name: DB_ENGINE
+              value: "mysql"
+            - name: DB_HOST
+              value: "dolphin-mysql-service"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: "<MYSQL_ROOT_PASSWORD>"
+            - name: DB_NAME
+              value: "jumpserver"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+      restartPolicy: Never

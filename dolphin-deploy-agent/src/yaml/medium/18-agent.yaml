@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-agent-service
+  namespace: devops
+  labels:
+    app: dolphin-agent-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-agent-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-agent-service
+    spec:
+      containers:
+        - name: dolphin-agent-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-agent-service:v1
+          env:
+            - name: DOLPHIN_API
+              value: <DOLPHIN_API>
+            - name: CLUSTER_ID
+              value: <CLUSTER_ID>
+            - name: CLUSTER_INSTANCE_ID
+              value: <CLUSTER_INSTANCE_ID>
+            - name: CONSUMER_COUNT
+              value: <CONSUMER_COUNT>
+            - name: CONSUMER_SLEEP
+              value: <CONSUMER_SLEEP>
+            - name: PRODUCER_SLEEP
+              value: <PRODUCER_SLEEP>
+            - name: REDIS_POOL_HOST
+              value: <REDIS_POOL_HOST>
+            - name: REDIS_POOL_PORT
+              value: <REDIS_POOL_PORT>
+            - name: REDIS_POOL_DB
+              value: <REDIS_POOL_DB>
+            - name: REDIS_POOL_MAX_CONNECT
+              value: <REDIS_POOL_MAX_CONNECT>
+            - name: SONAR_ADDR
+              value: <SONAR_ADDR>
+            - name: SONAR_USERNAME
+              value: <SONAR_USERNAME>
+            - name: SONAR_PASSWORD
+              value: <SONAR_PASSWORD>
+            - name: SONAR_SPIDER_POOL
+              value: <SONAR_SPIDER_POOL>
+            - name: IMAGE_TASK_POOL
+              value: <IMAGE_TASK_POOL>
+            - name: DOCKER_HUB
+              value: <DOCKER_HUB>
+            - name: DOCKER_USERNAME
+              value: <DOCKER_USERNAME>
+            - name: DOCKER_PASSWORD
+              value: <DOCKER_PASSWORD>
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 512Mi
+          volumeMounts:
+            - name: command-docker
+              mountPath: /usr/local/bin/docker
+            - name: command-docker-lock
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: command-docker
+          hostPath:
+            path: /usr/bin/docker
+        - name: command-docker-lock
+          hostPath:
+            path: /var/run/docker.sock
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dolphin-agent-service
+  name: dolphin-agent-service
+  namespace: devops
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: dolphin-agent-service
+  type: ClusterIP

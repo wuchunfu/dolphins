@@ -1,0 +1,103 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dolphin-jenkins-service
+  namespace: devops
+  labels:
+    app: dolphin-jenkins-service
+spec:
+  replicas: 1
+  serviceName: dolphin-jenkins-service
+  selector:
+    matchLabels:
+      app: dolphin-jenkins-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-jenkins-service
+    spec:
+      initContainers:
+        - name: change-mod
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          command: [ "sh", "-c", "chmod -R 777 /bitnami/jenkins" ]
+          volumeMounts:
+            - mountPath: /bitnami/jenkins
+              name: jenkins-home
+        - name: wait-for-sonar
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-sonar-service 80 && exit 0 || sleep 5; done; exit 1']
+        - name: wait-for-gitlab
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-gitlab-service 80 && exit 0 || sleep 5; done; exit 1' ]
+        - name: wait-for-nexus3
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-nexus-service 80 && exit 0 || sleep 5; done; exit 1' ]
+      containers:
+        - name: dolphin-jenkins-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/jenkins:v6
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          env:
+            - name: JENKINS_PASSWORD
+              value: <GLOBAL_PASSWORD>
+            - name: SONAR_SERVER_URL
+              value: "http://dolphin-sonar-service/"
+            - name: K8S_ADDR
+              value: <K8S_ADDR>
+            - name: JENKINS_ADDR
+              value: "http://<JENKINS_ADDRESS>"
+            - name: JENKINS_USERNAME
+              value: "user"
+          resources:
+            requests:
+              cpu: 2
+              memory: 2Gi
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /bitnami/jenkins
+              subPath: jenkins-data
+            - name: command-docker
+              mountPath: /usr/local/bin/docker
+            - name: command-docker-lock
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+        - name: command-docker
+          hostPath:
+            path: /usr/bin/docker
+        - name: command-docker-lock
+          hostPath:
+            path: /var/run/docker.sock
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-jenkins-service
+  namespace : devops
+  labels:
+    app: dolphin-jenkins-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-jenkins-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      name: http

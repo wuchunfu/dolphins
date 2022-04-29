@@ -1,0 +1,414 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: dolphin-elasticsearch-service
+    chart: elasticsearch
+    heritage: Helm
+    release: elasticsearch
+  name: dolphin-elasticsearch-service
+  namespace: devops
+spec:
+  podManagementPolicy: Parallel
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: dolphin-elasticsearch-service
+  serviceName: dolphin-elasticsearch-service-headless
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: dolphin-elasticsearch-service
+        chart: elasticsearch
+        heritage: Helm
+        release: elasticsearch
+      name: dolphin-elasticsearch-service
+    spec:
+      containers:
+        - env:
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: cluster.initial_master_nodes
+              value: dolphin-elasticsearch-service-0,dolphin-elasticsearch-service-1,dolphin-elasticsearch-service-2,
+            - name: discovery.seed_hosts
+              value: dolphin-elasticsearch-service-headless
+            - name: cluster.name
+              value: elasticsearch
+            - name: network.host
+              value: 0.0.0.0
+            - name: ES_JAVA_OPTS
+              value: -Xmx1g -Xms1g
+            - name: node.data
+              value: "true"
+            - name: node.ingest
+              value: "true"
+            - name: node.master
+              value: "true"
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/elasticsearch:v1
+          imagePullPolicy: IfNotPresent
+          name: elasticsearch
+          ports:
+            - containerPort: 9200
+              name: http
+              protocol: TCP
+            - containerPort: 9300
+              name: transport
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |-
+                  #!/usr/bin/env bash -e
+                  # If the node is starting up wait for the cluster to be ready (request params: 'wait_for_status=green&timeout=1s' )
+                  # Once it has started only check that the node itself is responding
+                  START_FILE=/tmp/.es_start_file
+
+                  http () {
+                      local path="${1}"
+                      if [ -n "${ELASTIC_USERNAME}" ] && [ -n "${ELASTIC_PASSWORD}" ]; then
+                        BASIC_AUTH="-u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD}"
+                      else
+                        BASIC_AUTH=''
+                      fi
+                      curl -XGET -s -k --fail ${BASIC_AUTH} http://127.0.0.1:9200${path}
+                  }
+
+                  if [ -f "${START_FILE}" ]; then
+                      echo 'Elasticsearch is already running, lets check the node is healthy and there are master nodes available'
+                      http "/_cluster/health?timeout=0s"
+                  else
+                      echo 'Waiting for elasticsearch cluster to become ready (request params: "wait_for_status=green&timeout=1s" )'
+                      if http "/_cluster/health?wait_for_status=green&timeout=1s" ; then
+                          touch ${START_FILE}
+                          exit 0
+                      else
+                          echo 'Cluster is not yet ready (request params: "wait_for_status=green&timeout=1s" )'
+                          exit 1
+                      fi
+                  fi
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 3
+            timeoutSeconds: 5
+          resources: {}
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: dolphin-elasticsearch-service
+      dnsPolicy: ClusterFirst
+      initContainers:
+        - command:
+            - sysctl
+            - -w
+            - vm.max_map_count=262144
+          image: ccr.ccs.tencentyun.com/tke-market/elasticsearch:7.6.2
+          imagePullPolicy: IfNotPresent
+          name: configure-sysctl
+          resources: {}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      terminationGracePeriodSeconds: 120
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: dolphin-elasticsearch-service
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 200Gi
+        volumeMode: Filesystem
+        storageClassName: <SC_NAME>
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  labels:
+    app: dolphin-elasticsearch-service
+    chart: elasticsearch
+    heritage: Helm
+    release: elasticsearch
+  name: dolphin-elasticsearch-service
+  namespace: devops
+spec:
+  ports:
+    - name: http
+      port: 9200
+      protocol: TCP
+    - name: transport
+      port: 9300
+      protocol: TCP
+  selector:
+    app: dolphin-elasticsearch-service
+    chart: elasticsearch
+    heritage: Helm
+    release: elasticsearch
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  labels:
+    app: dolphin-elasticsearch-service
+    chart: elasticsearch
+    heritage: Helm
+    release: elasticsearch
+  name: dolphin-elasticsearch-service-headless
+  namespace: devops
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: 9200
+    - name: transport
+      port: 9300
+  publishNotReadyAddresses: true
+  selector:
+    app: dolphin-elasticsearch-service
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dolphin-fluentd-configur
+  namespace: devops
+data:
+  system.conf: |-
+    <system>
+      root_dir /tmp/fluentd-buffers/
+    </system>
+  containers.input.conf: |-
+    <source>
+      @id fluentd-containers.log
+      @type tail                              # Fluentd 内置的输入方式，其原理是不停地从源文件中获取新的日志。
+      path /var/log/containers/*.log          # 挂载的服务器Docker容器日志地址
+      pos_file /var/log/es-containers.log.pos
+      tag raw.kubernetes.*                    # 设置日志标签
+      read_from_head true
+      <parse>                                 # 多行格式化成JSON
+        @type multi_format                    # 使用 multi-format-parser 解析器插件
+        <pattern>
+          format json                         # JSON解析器
+          time_key time                       # 指定事件时间的时间字段
+          time_format %Y-%m-%dT%H:%M:%S.%NZ   # 时间格式
+        </pattern>
+        <pattern>
+          format /^(?<time>.+) (?<stream>stdout|stderr) [^ ]* (?<log>.*)$/
+          time_format %Y-%m-%dT%H:%M:%S.%N%:z
+        </pattern>
+      </parse>
+    </source>
+    # 在日志输出中检测异常，并将其作为一条日志转发
+    # https://github.com/GoogleCloudPlatform/fluent-plugin-detect-exceptions
+    <match raw.kubernetes.**>           # 匹配tag为raw.kubernetes.**日志信息
+      @id raw.kubernetes
+      @type detect_exceptions           # 使用detect-exceptions插件处理异常栈信息
+      remove_tag_prefix raw             # 移除 raw 前缀
+      message log
+      stream stream
+      multiline_flush_interval 5
+      max_bytes 500000
+      max_lines 1000
+    </match>
+
+    <filter **>  # 拼接日志
+      @id filter_concat
+      @type concat                # Fluentd Filter 插件，用于连接多个事件中分隔的多行日志。
+      key message
+      multiline_end_regexp /\n$/  # 以换行符“\n”拼接
+      separator ""
+    </filter>
+
+    # 添加 Kubernetes metadata 数据
+    <filter kubernetes.**>
+      @id filter_kubernetes_metadata
+      @type kubernetes_metadata
+    </filter>
+
+    # 修复 ES 中的 JSON 字段
+    # 插件地址：https://github.com/repeatedly/fluent-plugin-multi-format-parser
+    <filter kubernetes.**>
+      @id filter_parser
+      @type parser                # multi-format-parser多格式解析器插件
+      key_name log                # 在要解析的记录中指定字段名称。
+      reserve_data true           # 在解析结果中保留原始键值对。
+      remove_key_name_field true  # key_name 解析成功后删除字段。
+      <parse>
+        @type multi_format
+        <pattern>
+          format json
+        </pattern>
+        <pattern>
+          format none
+        </pattern>
+      </parse>
+    </filter>
+
+    # 删除一些多余的属性
+    <filter kubernetes.**>
+      @type record_transformer
+      remove_keys $.docker.container_id,$.kubernetes.container_image_id,$.kubernetes.pod_id,$.kubernetes.namespace_id,$.kubernetes.master_url,$.kubernetes.labels.pod-template-hash
+    </filter>
+
+  forward.input.conf: |-
+    # 监听通过TCP发送的消息
+    <source>
+      @id forward
+      @type forward
+    </source>
+
+  output.conf: |-
+    <match **>
+      @id elasticsearch
+      @type elasticsearch
+      @log_level info
+      include_tag_key true
+      host dolphin-elasticsearch-service
+      port 9200
+      logstash_format true
+      logstash_prefix k8s  # 设置 index 前缀为 k8s
+      request_timeout    30s
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_thread_count 2
+        flush_interval 5s
+        retry_forever
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd-es
+  namespace: devops
+  labels:
+    app: fluentd-es
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluentd-es
+  labels:
+    app: fluentd-es
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "namespaces"
+      - "pods"
+    verbs:
+      - "get"
+      - "watch"
+      - "list"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fluentd-es
+  labels:
+    app: fluentd-es
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+  - kind: ServiceAccount
+    name: fluentd-es
+    namespace: devops
+    apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: fluentd-es
+  apiGroup: ""
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd-es
+  namespace: devops
+  labels:
+    app: fluentd-es
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  selector:
+    matchLabels:
+      app: fluentd-es
+  template:
+    metadata:
+      labels:
+        app: fluentd-es
+        kubernetes.io/cluster-service: "true"
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+    spec:
+      serviceAccountName: fluentd-es
+      containers:
+        - name: fluentd-es
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/fluentd:v1
+          env:
+            - name: FLUENTD_ARGS
+              value: --no-supervisor -q
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: configur-volume
+              mountPath: /etc/fluent/configur.d
+      tolerations:
+        - operator: Exists
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: configur-volume
+          configMap:
+            name: dolphin-fluentd-configur

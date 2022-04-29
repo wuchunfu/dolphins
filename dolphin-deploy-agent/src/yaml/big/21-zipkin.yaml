@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dolphin-zipkin-service
+  name: dolphin-zipkin-service
+  namespace: devops
+spec:
+  ports:
+    - port: 80
+      name: server
+      protocol: TCP
+      targetPort: 9411
+  selector:
+    app: dolphin-zipkin-service
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-zipkin-service
+  namespace: devops
+  labels:
+    name: dolphin-zipkin-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dolphin-zipkin-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-zipkin-service
+    spec:
+      containers:
+        - name: dolphin-zipkin-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/zipkin:v1
+          ports:
+            - containerPort: 9411
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m -Dlogging.level.zipkin=DEBUG -Dlogging.level.zipkin2=DEBUG -Duser.timezone=Asia/Shanghai"
+            - name: STORAGE_TYPE
+              value: "elasticsearch"   #设置数据存储在ES中
+            - name: ES_HOSTS
+              value: "dolphin-elasticsearch-service:9200"   #ES地址
+            - name: ES_INDEX           #设置ES中存储的zipkin索引名称
+              value: "zipkin"
+            - name: ES_INDEX_REPLICAS  #ES索引副本数
+              value: "1"
+            - name: ES_INDEX_SHARDS    #ES分片数量
+              value: "3"
+            - name: KAFKA_BOOTSTRAP_SERVERS #Kafka 地址
+              value: "metersphere-kafka:9092"
+            - name: KAFKA_TOPIC             #Kafka Topic名称,默认为"zipkin"
+              value: "zipkin"
+            - name: KAFKA_GROUP_ID          #Kafka 组名,默认为"zipkin"
+              value: "zipkin"
+            - name: KAFKA_STREAMS           #消耗Topic的线程数,默认为1
+              value: "1"
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 256Mi
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: dolphin-zipkin-dependencies-service
+  namespace: devops
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          containers:
+            - name: dolphin-zipkin-dependencies-service
+              image: registry.cn-beijing.aliyuncs.com/aidolphins_com/zipkin-dependencies:v1
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: JAVA_OPTS
+                  value: "-Xms512m -Xmx512m -Duser.timezone=Asia/Shanghai"
+                - name: STORAGE_TYPE
+                  value: elasticsearch
+                - name: ES_HOSTS
+                  value: "dolphin-elasticsearch-service:9200"
+                - name: ES_INDEX
+                  value: zipkin
+                - name: ES_INDEX_REPLICAS
+                  value: "1"
+                - name: ES_INDEX_SHARDS
+                  value: "3"
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  value: metersphere-kafka:9092
+                - name: KAFKA_TOPIC
+                  value: zipkin
+                - name: KAFKA_GROUP_ID
+                  value: zipkin
+                - name: KAFKA_STREAMS
+                  value: "1"
+              resources:
+                limits:
+                  cpu: 1000m
+                  memory: 512Mi
+                requests:
+                  cpu: 500m
+                  memory: 256Mi
+          restartPolicy: OnFailure

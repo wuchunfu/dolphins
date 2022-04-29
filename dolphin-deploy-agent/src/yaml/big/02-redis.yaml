@@ -1,0 +1,92 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: devops
+  name: redis-configur
+  labels:
+    app: redis
+data:
+  redis.conf: |-
+    dir /data
+    port 6379
+    bind 0.0.0.0
+    appendonly no
+    protected-mode no
+    requirepass <REDIS_PASSWORD>
+    pidfile /data/redis-6379.pid
+    # maxmemory 1073741824
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: devops
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  serviceName: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/redis:v1
+          command:
+            - "sh"
+            - "-c"
+            - "redis-server /usr/local/etc/redis/redis.conf"
+          ports:
+            - containerPort: 6379
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 300
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: configur
+              mountPath:  /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+      volumes:
+        - name: configur
+          configMap:
+            name: redis-configur
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: devops
+  labels:
+    app: redis
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: redis

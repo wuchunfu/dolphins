@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-arachwebscan-service
+  namespace: devops
+  labels:
+    app: dolphin-arachwebscan-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-arachwebscan-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-arachwebscan-service
+    spec:
+      containers:
+        - name: dolphin-arachwebscan-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-webscan-arachni-engine:v1
+          readinessProbe:
+            httpGet:
+              path: /scans
+              port: 7331
+            initialDelaySeconds: 45
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          ports:
+            - containerPort: 7331
+              name: http
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dolphin-arachwebscan-service
+  name: dolphin-arachwebscan-service
+  namespace: devops
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 7331
+  selector:
+    app: dolphin-arachwebscan-service
+  type: ClusterIP

@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: dolphin-yapi-service
+  name: dolphin-yapi-service
+  namespace: devops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dolphin-yapi-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-yapi-service
+    spec:
+      containers:
+        - env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: yapi
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: <YAPI_DB_PASSWORD>
+            - name: MONGO_INITDB_DATABASE
+              value: yapi
+          image: 'mongo:latest'
+          imagePullPolicy: IfNotPresent
+          name: mongo
+          ports:
+            - containerPort: 27017
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 1
+              memory: 1024Mi
+          volumeMounts:
+            - name: yapi-data
+              mountPath: /data/db
+              subPath: yapi-data
+        - env:
+            - name: YAPI_ADMIN_ACCOUNT
+              value: admin
+            - name: YAPI_ADMIN_PASSWORD
+              value: <GLOBAL_PASSWORD>
+            - name: YAPI_CLOSE_REGISTER
+              value: 'false'
+            - name: YAPI_DB_SERVERNAME
+              value: 127.0.0.1
+            - name: YAPI_DB_PORT
+              value: '27017'
+            - name: YAPI_DB_DATABASE
+              value: yapi
+            - name: YAPI_DB_USER
+              value: yapi
+            - name: YAPI_DB_PASS
+              value: <YAPI_DB_PASSWORD>
+            - name: YAPI_DB_AUTH_SOURCE
+              value: admin
+            - name: YAPI_MAIL_ENABLE
+              value: 'false'
+            - name: YAPI_LDAP_LOGIN_ENABLE
+              value: 'false'
+          image: 'jayfong/yapi:latest'
+          imagePullPolicy: IfNotPresent
+          name: yapi
+      volumes:
+        - name: yapi-data
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dolphin-yapi-service
+  name: dolphin-yapi-service
+  namespace: devops
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: dolphin-yapi-service
+  type: ClusterIP

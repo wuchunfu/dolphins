@@ -1,0 +1,78 @@
+apiVersion: storage.alibabacloud.com/v1beta1
+kind: ContainerNetworkFileSystem
+metadata:
+  name: cnfs-nas-filesystem
+spec:
+  description: "cnfs"
+  type: nas
+  reclaimPolicy: Retain
+  parameters:
+    enableTrashCan: "true"
+
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: <SC_NAME>
+mountOptions:
+  - nolock,tcp,noresvport
+  - vers=3
+parameters:
+  volumeAs: subpath
+  containerNetworkFileSystem: cnfs-nas-filesystem
+  path: "/"
+provisioner: nasplugin.csi.alibabacloud.com
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: dolphin-share-service
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: <SC_NAME>
+  resources:
+    requests:
+      storage: 1024Gi
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: dolphin-master-service
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: <SC_NAME>
+  resources:
+    requests:
+      storage: 500Gi
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: dolphin-slave-service
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: <SC_NAME>
+  resources:
+    requests:
+      storage: 500Gi
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: dolphin-mysql-service
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: <SC_NAME>
+  resources:
+    requests:
+      storage: 200Gi

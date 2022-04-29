@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: devops
+  name: mysql-configur
+data:
+  my.cnf: |
+    [mysqld]
+    pid-file=/var/log/mysql/mysqld.pid
+    #socket=/var/log/mysql/mysqld.sock
+    datadir=/var/lib/mysql/data
+    log-error=/var/log/mysql/error.log
+
+    symbolic-links=0
+
+    port=3306
+
+    # 日志时间和系统时间保持一致
+    log_timestamps=SYSTEM
+
+    # 设置字符集
+    character_set_server=utf8mb4
+    collation-server=utf8mb4_general_ci
+
+    # 设置时区
+    default-time_zone = '+8:00'
+
+    # 数据行更新时，timestamp类型字段不更新为当前时间
+    explicit_defaults_for_timestamp=on
+
+    #mysql 5.7版本配置需要加一行
+    sql_mode=STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+
+    #mysql配置文件优化
+    lower_case_table_names = 1
+    max_allowed_packet = 500M
+    max_connections=8000
+    open_files_limit = 10000
+    innodb_log_file_size=640M
+    innodb_log_buffer_size=256M
+
+    interactive_timeout = 120
+    wait_timeout = 120
+
+    sort_buffer_size = 6M
+    read_buffer_size = 4M
+    join_buffer_size = 8M
+    query_cache_size = 64M
+    tmp_table_size = 256M
+    innodb_thread_concurrency = 4
+
+    # 开启慢查询
+    slow_query_log = ON
+    slow_query_log_file=/var/log/mysql/slow.log
+    long_query_time = 10
+
+    #开启binlog日志
+    server-id=1
+    log-bin=/var/log/mysql/mysql-bin
+    binlog_format=mixed
+    max_binlog_size=1024M
+    binlog_cache_size=1M
+    expire-logs-days=15
+    log_bin_trust_function_creators = on
+
+    [mysqld_safe]
+    log-error=/var/log/mysql/error.log
+    #pid-file=/var/log/mysql/mysqld.pid
+
+    [client]
+    default-character-set=utf8
+    #socket=/var/log/mysql/mysqld.sock
+
+    [mysql]
+    default-character-set=utf8
+    #socket=/var/log/mysql/mysqld.sock
+  init.sql: |
+    CREATE DATABASE `sonar` /*!40100 DEFAULT CHARACTER SET utf8 */;
+    CREATE DATABASE `metersphere` /*!40100 DEFAULT CHARACTER SET utf8 */;
+    CREATE DATABASE `jumpserver` /*!40100 DEFAULT CHARACTER SET utf8 */;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: devops
+  name: dolphin-mysql-service
+spec:
+  replicas: 1
+  serviceName: "dolphin-mysql-service"
+  selector:
+    matchLabels:
+      app: dolphin-mysql-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-mysql-service
+    spec:
+      containers:
+        - name: dolphin-mysql-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/mysql:v1
+          imagePullPolicy: Always
+          args:
+            - "--ignore-db-dir=lost+found"
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 0.1
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: <MYSQL_ROOT_PASSWORD>
+          ports:
+            - name: tcp
+              containerPort: 3306
+          livenessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            exec:
+              command: [ "mysqladmin", "-uroot", "-p${MYSQL_ROOT_PASSWORD}", "ping" ]
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            exec:
+              command: [ "mysqladmin", "-uroot", "-p${MYSQL_ROOT_PASSWORD}", "ping" ]
+          volumeMounts:
+            - mountPath: /etc/mysql/conf.d/my.cnf
+              name: opt-metersphere-configur
+              subPath: my.cnf
+            - mountPath: /docker-entrypoint-initdb.d/init.sql
+              name: init-mysql
+              subPath: init.sql
+            - mountPath: /var/lib/mysql
+              name: mysql-data
+              subPath: mysql
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: mysql-configur
+          name: opt-metersphere-configur
+        - configMap:
+            defaultMode: 420
+            name: mysql-configur
+          name: init-mysql
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: dolphin-mysql-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-mysql-service
+  namespace: devops
+  labels:
+    app: dolphin-mysql-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-mysql-service
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306

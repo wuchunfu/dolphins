@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-gitlab-service
+  namespace: devops
+  labels:
+    app: dolphin-gitlab-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-gitlab-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-gitlab-service
+    spec:
+      containers:
+        - name: dolphin-gitlab-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/gitlab:v1
+          readinessProbe:
+            httpGet:
+              path: /users/sign_in
+              port: 80
+            initialDelaySeconds: 45
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: GITLAB_OMNIBUS_CONFIG
+              value: |
+                external_url 'http://<GITLAB_ADDRESS>'
+                gitlab_rails['time_zone'] = 'Asia/Shanghai'
+                gitlab_rails['initial_root_password'] = '<GLOBAL_PASSWORD>'
+                gitlab_rails['gitlab_shell_ssh_port'] = 22
+                unicorn['worker_processes'] = 3
+                prometheus['enable'] = false
+                prometheus['monitor_kubernetes'] = false
+          resources:
+            requests:
+              cpu: 1
+              memory: 1024Mi
+          volumeMounts:
+            - name: gitlab-data
+              mountPath: /var/opt/gitlab
+              subPath: gitlab
+      volumes:
+        - name: gitlab-data
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-gitlab-service
+  namespace: devops
+  labels:
+    app: dolphin-gitlab-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-gitlab-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

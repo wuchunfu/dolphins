@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-hfish-service
+  namespace: devops
+  labels:
+    app: dolphin-hfish-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-hfish-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-hfish-service
+    spec:
+      containers:
+        - name: dolphin-hfish-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-hfish-service:v1
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 21
+              protocol: TCP
+              name: ftp
+            - containerPort: 22
+              protocol: TCP
+              name: ssh
+            - containerPort: 23
+              protocol: TCP
+              name: telnet
+            - containerPort: 69
+              protocol: TCP
+              name: p1
+            - containerPort: 3306
+              protocol: TCP
+              name: mysql
+            - containerPort: 5900
+              protocol: TCP
+              name: p2
+            - containerPort: 6379
+              protocol: TCP
+              name: redis
+            - containerPort: 7879
+              protocol: TCP
+              name: p3
+            - containerPort: 8080
+              protocol: TCP
+              name: p4
+            - containerPort: 8081
+              protocol: TCP
+              name: p5
+            - containerPort: 8989
+              protocol: TCP
+              name: p6
+            - containerPort: 9000
+              protocol: TCP
+              name: es
+            - containerPort: 9001
+              protocol: TCP
+              name: es2
+            - containerPort: 9200
+              protocol: TCP
+              name: es3
+            - containerPort: 11211
+              protocol: TCP
+              name: p6
+          resources:
+            requests:
+              cpu: 1
+              memory: 1024Mi
+            limits:
+              cpu: 1
+              memory: 1024Mi
+          volumeMounts:
+            - name: hfish-data
+              mountPath: /opt
+              subPath: hfish
+      volumes:
+        - name: hfish-data
+          persistentVolumeClaim:
+            claimName: dolphin-master-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-hfish-service
+  namespace: devops
+  labels:
+    app: dolphin-hfish-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-hfish-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9001
+    - protocol: TCP
+      port: 21
+      targetPort: 21
+    - protocol: TCP
+      port: 22
+      targetPort: 22
+    - protocol: TCP
+      port: 23
+      targetPort: 23
+    - protocol: TCP
+      port: 69
+      targetPort: 69
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+    - protocol: TCP
+      port: 5900
+      targetPort: 5900
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+    - protocol: TCP
+      port: 7879
+      targetPort: 7879
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+    - protocol: TCP
+      port: 8989
+      targetPort: 8989
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+    - protocol: TCP
+      port: 9200
+      targetPort: 9200
+    - protocol: TCP
+      port: 11211
+      targetPort: 11211

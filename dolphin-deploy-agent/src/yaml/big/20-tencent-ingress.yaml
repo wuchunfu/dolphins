@@ -1,0 +1,228 @@
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-gitlab-service
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <GITLAB_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-gitlab-service
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-hfish-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <HFISH_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-hfish-service
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: jumpserver-jms-web
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade "websocket";
+      proxy_set_header Connection "Upgrade";
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+  labels:
+    app.jumpserver.org/name: jms-web
+    app.kubernetes.io/name: jumpserver
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <JUMPSERVER_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: jumpserver-jms-web
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: metersphere
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <METERSPHERE_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: metersphere-server
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: skywalking-ui
+  labels:
+    app: skywalking-ui
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SKYWALKING_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: skywalking-ui
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-sonar-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SONAR_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-sonar-service
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-yapi-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <YAPI_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-yapi-service
+              servicePort: 80
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dolphin-nexus-service
+  namespace: devops
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <NEXUS_ADDRESS>
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: dolphin-nexus-service
+              servicePort: 80
+    - host: <DOCKER_ADDRESS>
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: dolphin-nexus-service
+              servicePort: 5000
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-jenkins-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <JENKINS_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-jenkins-service
+              servicePort: 80
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  namespace: devops
+  name: dolphin-sentry-web-service
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SENTRY_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-sentry-web-service
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <GRAFANA_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: grafana
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: dolphin-zipkin-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <ZIPKIN_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-zipkin-service
+              servicePort: 80
+
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: dolphin-elasticsearch-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <ES_ADDRESS>
+      http:
+        paths:
+          - backend:
+              serviceName: dolphin-elasticsearch-service
+              servicePort: 9200

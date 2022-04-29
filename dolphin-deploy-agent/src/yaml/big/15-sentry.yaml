@@ -1,0 +1,380 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-sentry-postgresql-service
+  namespace: devops
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql-port
+      port: 5432
+      targetPort: postgresql-port
+  selector:
+    app: sentry-postgresql
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sentry-postgresql
+  name: dolphin-sentry-postgresql-service
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: sentry-postgresql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sentry-postgresql
+    spec:
+      containers:
+        - name: sentry-postgresql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry-db:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_USER
+              value: "sentry"
+            - name: PGUSER
+              value: "sentry"
+            - name: POSTGRES_DB
+              value: "sentry"
+            - name: POSTGRES_INITDB_ARGS
+              value: ""
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+          ports:
+            - name: postgresql-port
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - exec pg_isready --host $POD_IP
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - exec pg_isready --host $POD_IP
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 4000m
+              memory: 4Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /var/lib/postgresql/data/pgdata
+              subPath: postgresql-db
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sentry-cron
+  name: dolphin-sentry-cron-service
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: sentry-cron
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sentry-cron
+    spec:
+      containers:
+        - name: sentry-cron
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry:v1
+          imagePullPolicy: IfNotPresent
+          args: ["run", "cron"]
+          ports:
+            - containerPort: 9000
+          env:
+            - name: SENTRY_SECRET_KEY
+              value: "92jksjhd78238jsd78r732h7290"
+            - name: SENTRY_POSTGRES_HOST
+              value: "dolphin-sentry-postgresql-service"
+            - name: SENTRY_POSTGRES_PORT
+              value: "5432"
+            - name: SENTRY_DB_USER
+              value: "sentry"
+            - name: SENTRY_DB_NAME
+              value: "sentry"
+            - name: SENTRY_DB_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: SENTRY_REDIS_HOST
+              value: "redis"
+            - name: SENTRY_REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+            - name: SENTRY_REDIS_PORT
+              value: "6379"
+          volumeMounts:
+            - name: sentry-data
+              mountPath: /var/lib/sentry/files
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+      volumes:
+        - name: sentry-data
+          emptyDir: {}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: sentry-db-init
+  name: dolphin-sentry-db-init-service
+  namespace: devops
+spec:
+  template:
+    metadata:
+      labels:
+        app: sentry-db-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: sentry-db-init
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry:v1
+          command: ["sentry","upgrade","--noinput"]
+          env:
+            - name: SENTRY_SECRET_KEY
+              value: "92jksjhd78238jsd78r732h7290"
+            - name: SENTRY_DB_USER
+              value: "sentry"
+            - name: SENTRY_DB_NAME
+              value: "sentry"
+            - name: SENTRY_DB_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: SENTRY_POSTGRES_HOST
+              value: "dolphin-sentry-postgresql-service"
+            - name: SENTRY_POSTGRES_PORT
+              value: "5432"
+            - name: SENTRY_REDIS_HOST
+              value: "redis"
+            - name: SENTRY_REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+            - name: SENTRY_REDIS_PORT
+              value: "6379"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: sentry-user-init
+  name: dolphin-sentry-user-init-service
+  namespace: devops
+spec:
+  template:
+    metadata:
+      labels:
+        app: sentry-user-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: sentry-user-init
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry:v1
+          command: ["sentry","createuser","--no-input","--email", "admin@sentry.local", "--superuser","--password","$(SENTRY_USER_PASSWORD)"]
+          env:
+            - name: SENTRY_SECRET_KEY
+              value: "92jksjhd78238jsd78r732h7290"
+            - name: SENTRY_DB_USER
+              value: "sentry"
+            - name: SENTRY_DB_NAME
+              value: "sentry"
+            - name: SENTRY_DB_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: SENTRY_POSTGRES_HOST
+              value: "dolphin-sentry-postgresql-service"
+            - name: SENTRY_POSTGRES_PORT
+              value: "5432"
+            - name: SENTRY_REDIS_HOST
+              value: "redis"
+            - name: SENTRY_REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+            - name: SENTRY_REDIS_PORT
+              value: "6379"
+            - name: SENTRY_USER_PASSWORD
+              value: "<GLOBAL_PASSWORD>"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sentry-worker
+  name: dolphin-sentry-worker-service
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: sentry-worker
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sentry-worker
+    spec:
+      containers:
+        - name: sentry-worker
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry:v1
+          imagePullPolicy: IfNotPresent
+          args: ["run", "worker"]
+          ports:
+            - containerPort: 9000
+          env:
+            - name: SENTRY_SECRET_KEY
+              value: "92jksjhd78238jsd78r732h7290"
+            - name: SENTRY_POSTGRES_HOST
+              value: "dolphin-sentry-postgresql-service"
+            - name: SENTRY_POSTGRES_PORT
+              value: "5432"
+            - name: SENTRY_DB_USER
+              value: "sentry"
+            - name: SENTRY_DB_NAME
+              value: "sentry"
+            - name: SENTRY_DB_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: SENTRY_REDIS_HOST
+              value: "redis"
+            - name: SENTRY_REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+            - name: SENTRY_REDIS_PORT
+              value: "6379"
+          volumeMounts:
+            - name: sentry-data
+              mountPath: /var/lib/sentry/files
+          resources:
+            limits:
+              cpu: 300m
+              memory: 2500Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+      volumes:
+        - name: sentry-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-sentry-web-service
+  namespace: devops
+spec:
+  type: ClusterIP
+  ports:
+    - name: sentry-web-port
+      port: 80
+      targetPort: 9000
+      protocol: TCP
+  selector:
+    app: sentry-web
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sentry-web
+  name: dolphin-sentry-web-service
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: sentry-web
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sentry-web
+    spec:
+      containers:
+        - name: sentry-web
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sentry:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - name: SENTRY_SECRET_KEY
+              value: "92jksjhd78238jsd78r732h7290"
+            - name: SENTRY_POSTGRES_HOST
+              value: "dolphin-sentry-postgresql-service"
+            - name: SENTRY_POSTGRES_PORT
+              value: "5432"
+            - name: SENTRY_DB_USER
+              value: "sentry"
+            - name: SENTRY_DB_NAME
+              value: "sentry"
+            - name: SENTRY_DB_PASSWORD
+              value: "ymzndl33SNwdm"
+            - name: SENTRY_REDIS_HOST
+              value: "redis"
+            - name: SENTRY_REDIS_PASSWORD
+              value: "<REDIS_PASSWORD>"
+            - name: SENTRY_REDIS_PORT
+              value: "6379"
+            - name: GITHUB_APP_ID
+              value: ""
+            - name: GITHUB_API_SECRET
+              value: ""
+          volumeMounts:
+            - name: sentry-data
+              mountPath: /var/lib/sentry/files
+              subPath: sentry-data
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /_health/
+              port: 9000
+              scheme: HTTP
+            initialDelaySeconds: 50
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /_health/
+              port: 9000
+              scheme: HTTP
+            initialDelaySeconds: 50
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 300m
+              memory: 300Mi
+      volumes:
+        - name: sentry-data
+          persistentVolumeClaim:
+            claimName: dolphin-share-service

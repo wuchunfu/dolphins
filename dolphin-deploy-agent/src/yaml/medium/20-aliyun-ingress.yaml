@@ -1,0 +1,182 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-gitlab-service
+  namespace: devops
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <GITLAB_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-gitlab-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jumpserver-jms-web
+  namespace: devops
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade "websocket";
+      proxy_set_header Connection "Upgrade";
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+  labels:
+    app.jumpserver.org/name: jms-web
+    app.kubernetes.io/name: jumpserver
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <JUMPSERVER_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: jumpserver-jms-web
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: devops
+  labels:
+    app: skywalking-ui
+  name: skywalking-ui
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SKYWALKING_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: skywalking-ui
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-sonar-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SONAR_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-sonar-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-yapi-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <YAPI_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-yapi-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-nexus-service
+  namespace: devops
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <NEXUS_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-nexus-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+    - host: <DOCKER_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-nexus-service
+                port:
+                  number: 5000
+            path: /
+            pathType: ImplementationSpecific
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-jenkins-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <JENKINS_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-jenkins-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dolphin-sentry-web-service
+  namespace: devops
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: <SENTRY_ADDRESS>
+      http:
+        paths:
+          - backend:
+              service:
+                name: dolphin-sentry-web-service
+                port:
+                  number: 80
+            path: /
+            pathType: ImplementationSpecific

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-sonar-service
+  namespace: devops
+  labels:
+    app: dolphin-sonar-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-sonar-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-sonar-service
+    spec:
+      initContainers:
+        - name: init-sonar-configur
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          command:
+          - sysctl
+          - -w
+          - vm.max_map_count=262144
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+        - name: init-sonar-dir
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          command: ["sh", "-c", "chmod -R 777 /bitnami/sonarqube"]
+          volumeMounts:
+            - name: dolphin-sonar-service
+              mountPath: /bitnami/sonarqube
+              subPath: sonarqube-data
+        - name: wait-for-postgressql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          imagePullPolicy: IfNotPresent
+          command: [ 'sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 dolphin-postgresql-service 5432 && exit 0 || sleep 5; done; exit 1' ]
+      containers:
+        - name: dolphin-sonar-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/sonar:v2
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          env:
+            - name: SONARQUBE_DATABASE_HOST
+              value: "dolphin-postgresql-service"
+            - name: SONARQUBE_DATABASE_USER
+              value: "proot"
+            - name: SONARQUBE_DATABASE_PASSWORD
+              value: <GLOBAL_PASSWORD>
+            - name: SONARQUBE_DATABASE_NAME
+              value: "sonarqube"
+            - name: SONARQUBE_USERNAME
+              value: admin
+            - name: SONARQUBE_PASSWORD
+              value: <GLOBAL_PASSWORD>
+            - name: SONARQUBE_PORT_NUMBER
+              value: "8080"
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 2048Mi
+          volumeMounts:
+            - name: dolphin-sonar-service
+              mountPath: /bitnami/sonarqube
+              subPath: sonarqube-data
+      volumes:
+        - name: dolphin-sonar-service
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: dolphin-sonar-service
+  labels:
+    app: dolphin-sonar-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-sonar-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

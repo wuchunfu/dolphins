@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-postgresql-service
+  namespace: devops
+  labels:
+    app: dolphin-postgresql-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-postgresql-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-postgresql-service
+    spec:
+      initContainers:
+        - name: init-postsql
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/busybox:v1
+          command: ["sh", "-c", "chmod -R 777 /bitnami/postgresql"]
+          volumeMounts:
+            - name: dolphin-sonar-service
+              mountPath: /bitnami/postgresql
+              subPath: postgresql-data
+      containers:
+        - name: dolphin-postgresql-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/postgresql:v1
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            exec:
+              command: [ "pg_isready", "-U", "proot" ]
+          env:
+            - name: POSTGRESQL_USERNAME
+              value: "proot"
+            - name: POSTGRESQL_PASSWORD
+              value: <GLOBAL_PASSWORD>
+            - name: POSTGRESQL_DATABASE
+              value: "sonarqube"
+          volumeMounts:
+            - name: dolphin-sonar-service
+              mountPath: /bitnami/postgresql
+              subPath: postgresql-data
+      volumes:
+        - name: dolphin-sonar-service
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: devops
+  name: dolphin-postgresql-service
+  labels:
+    app: dolphin-postgresql-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-postgresql-service
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dolphin-nexus-service
+  namespace: devops
+  labels:
+    app: dolphin-nexus-service
+spec:
+  replicas: 1
+  serviceName: dolphin-nexus-service
+  selector:
+    matchLabels:
+      app: dolphin-nexus-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-nexus-service
+    spec:
+      initContainers:
+        - name: change-mod
+          image: busybox
+          command: [ "sh", "-c", "chmod -R 777 /nexus-data" ]
+          volumeMounts:
+            - mountPath: /nexus-data
+              name: nexus-data
+      containers:
+        - name: dolphin-nexus-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/nexus3:v1
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+          volumeMounts:
+            - name: nexus-data
+              mountPath: /nexus-data
+              subPath: nexus-data
+      volumes:
+        - name: nexus-data
+          persistentVolumeClaim:
+            claimName: dolphin-share-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dolphin-nexus-service
+  namespace: devops
+  labels:
+    app: dolphin-nexus-service
+spec:
+  type: ClusterIP
+  selector:
+    app: dolphin-nexus-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8081
+      name: http
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: docker

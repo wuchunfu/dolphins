@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dolphin-stc-service
+  namespace: devops
+  labels:
+    app: dolphin-stc-service
+spec:
+  revisionHistoryLimit: 1
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: dolphin-stc-service
+  template:
+    metadata:
+      labels:
+        app: dolphin-stc-service
+    spec:
+      containers:
+        - name: dolphin-stc-service
+          image: registry.cn-beijing.aliyuncs.com/aidolphins_com/dolphin-stc-scan:v3
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+          env:
+            - name: GITLAB_USERNAME
+              value: root
+            - name: GITLAB_PASSWORD
+              value: <GLOBAL_PASSWORD>
+          resources:
+            requests:
+              cpu: 1
+              memory: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: dolphin-stc-service
+  name: dolphin-stc-service
+  namespace: devops
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 5000
+  selector:
+    app: dolphin-stc-service
+  type: ClusterIP
