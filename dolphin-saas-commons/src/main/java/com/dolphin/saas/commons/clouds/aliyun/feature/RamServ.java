@@ -306,14 +306,4 @@ public class RamServ extends MasterServ implements Frame {
     public Map<String, Object> refval() throws Exception {
         return this.results;
     }
-
-    public static void main(String[] args) {
-        try {
-            RamServ ramServ = new RamServ("LTAI5tDJjyU1Wros3QW3FqXv", "UscaVFytolIIiZvfyK1qkoqo7oWiC0");
-            System.out.println(ramServ.userCheck("dolphins-992"));
-            ramServ.createUser("dolphins-992", "海豚工程Devops", "auto@aidolphins.com", "海豚工程的devops");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 }
