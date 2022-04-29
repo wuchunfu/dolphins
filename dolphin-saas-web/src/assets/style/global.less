@@ -1,0 +1,324 @@
+@import '~ant-design-vue/es/style/themes/default.less';
+
+html,
+body,
+#app,
+#root {
+  height: 100%;
+}
+
+.colorWeak {
+  filter: invert(80%);
+}
+
+.ant-layout.layout-basic {
+  height: 100vh;
+  min-height: 100vh;
+}
+.ant-card {
+  border-radius: 6px;
+}
+canvas {
+  display: block;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ant-pagination.mini .ant-pagination-item {
+  line-height: 26px !important;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+// 数据列表 样式
+.ant-table {
+  width: 100%;
+  overflow-x: auto;
+  &-thead > tr > th {
+    background: #fff;
+  }
+}
+
+// 数据列表 样式
+.table-alert {
+  margin-bottom: 16px;
+}
+// 数据列表 操作
+.table-operator {
+  margin-bottom: 18px;
+  button {
+    margin-right: 8px;
+  }
+}
+// 数据列表 搜索条件
+.table-page-search-wrapper {
+  .ant-form-inline {
+    .ant-form-item {
+      display: flex;
+      margin-bottom: 24px;
+      margin-right: 0;
+
+      .ant-form-item-control-wrapper {
+        flex: 1 1;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      > .ant-form-item-label {
+        line-height: 32px;
+        padding-right: 8px;
+        width: auto;
+      }
+      .ant-form-item-control {
+        height: 32px;
+        line-height: 32px;
+      }
+    }
+  }
+
+  .table-page-search-submitButtons {
+    display: block;
+    margin-bottom: 24px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: @screen-xs) {
+  .ant-table {
+    width: 100%;
+    overflow-x: auto;
+    &-thead > tr,
+    &-tbody > tr {
+      > th,
+      > td {
+        white-space: pre;
+        > span {
+          display: block;
+        }
+      }
+    }
+  }
+}
+
+/** 基础通用 **/
+.p0 {
+  padding: 0 !important;
+}
+.pt5 {
+  padding-top: 5px !important;
+}
+.pr5 {
+  padding-right: 5px !important;
+}
+.pb5 {
+  padding-bottom: 5px !important;
+}
+.px-30 {
+  padding-left: 30px;
+  padding-right: 30px;
+}
+.pb-30 {
+  padding-bottom: 30px;
+}
+.p20 {
+  padding: 20px !important;
+}
+.m10 {
+  margin: 10px !important;
+}
+.m15 {
+  margin: 15px !important;
+}
+.m20 {
+  margin: 20px !important;
+}
+.mt5 {
+  margin-top: 5px !important;
+}
+.mr5 {
+  margin-right: 5px !important;
+}
+.mb5 {
+  margin-bottom: 5px !important;
+}
+.mb8 {
+  margin-bottom: 8px !important;
+}
+.ml5 {
+  margin-left: 5px !important;
+}
+.mt10 {
+  margin-top: 10px !important;
+}
+.ml10 {
+  margin-left: 10px !important;
+}
+.mr10 {
+  margin-right: 10px !important;
+}
+.mb10 {
+  margin-bottom: 10px;
+}
+.ml0 {
+  margin-left: 10px;
+}
+.mt20 {
+  margin-top: 20px;
+}
+.mr20 {
+  margin-right: 20px;
+}
+.mb18 {
+  margin-bottom: 18px;
+}
+.mb20 {
+  margin-bottom: 20px !important;
+}
+.mb30 {
+  margin-bottom: 30px !important;
+}
+.m20 {
+  margin-left: 20px !important;
+}
+.f12 {
+  font-size: 12px !important;
+}
+.f14 {
+  font-size: 14px !important;
+}
+.f16 {
+  font-size: 16px !important;
+}
+.f18 {
+  font-size: 18px !important;
+}
+.f20 {
+  font-size: 20px !important;
+}
+.f22 {
+  font-size: 22px !important;
+}
+.w10 {
+  width: 10px !important;
+}
+.width100 {
+  width: 100% !important;
+}
+.w200 {
+  width: 200px !important;
+}
+.w300 {
+  width: 300px !important;
+  max-width: 300px !important;
+}
+.mx10 {
+  margin-left: 10px !important;
+  margin-right: 10px !important;
+}
+.mw60 {
+  min-width: 60px !important;
+}
+.mw70 {
+  min-width: 70px !important;
+}
+.mw80 {
+  min-width: 80px !important;
+}
+.mw90 {
+  min-width: 90px !important;
+}
+.mw100 {
+  min-width: 100px !important;
+}
+.mw110 {
+  min-width: 110px !important;
+}
+.mw120 {
+  min-width: 120px !important;
+}
+.mw130 {
+  min-width: 130px !important;
+}
+.mw140 {
+  min-width: 150px !important;
+}
+.mw150 {
+  min-width: 150px !important;
+}
+.mw130 {
+  min-width: 130px !important;
+}
+.mw130 {
+  min-width: 130px !important;
+}
+.mw140 {
+  min-width: 140px !important;
+}
+.mw150 {
+  min-width: 150px !important;
+}
+.mw160 {
+  min-width: 160px !important;
+}
+.mw170 {
+  min-width: 170px !important;
+}
+.mw180 {
+  min-width: 180px !important;
+}
+.mw300 {
+  min-width: 300px !important;
+}
+
+/* text color */
+.text-navy {
+  color: #1ab394 !important;
+}
+.text-green {
+  color: green !important;
+}
+.text-red {
+  color: red !important;
+}
+.text-blue {
+  color: #2684ff !important;
+}
+.text-primary {
+  color: inherit !important;
+}
+
+.text-success {
+  color: #1c84c6 !important;
+}
+
+.text-info {
+  color: #23c6c8 !important;
+}
+
+.text-warning {
+  color: #f8ac59 !important;
+}
+
+.text-danger {
+  color: #ed5565 !important;
+}
+
+.text-muted {
+  color: #888888 !important;
+}
+.font-bold {
+  font-weight: bold !important;
+}
+.shadow {
+  border-radius: 8px;
+  box-shadow: 0 0 10px 0 #f0f0f0;
+}
+.cursor-pointer {
+  cursor: pointer;
+}

@@ -1,0 +1,61 @@
+.sidebar-container {
+  .logo {
+    margin: 20px 0;
+    min-height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    svg {
+      width: 32px;
+      height: 32px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      margin-left: 10px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+  .ant-menu,
+  ::v-deep .ant-menu-submenu > .ant-menu {
+    background: transparent !important;
+  }
+  .ant-menu-item {
+    border-radius: 25px;
+    padding: 0 20px !important;
+    margin: 0 12px !important;
+    margin-bottom: 6px !important;
+    color: #546ba3;
+  }
+  .ant-menu-submenu {
+    color: #546ba3;
+  }
+  ::v-deep .ant-menu-submenu-selected > .ant-menu-submenu-title {
+    font-weight: bold;
+    color: #222c64;
+  }
+  ::v-deep
+    .ant-menu-inline-collapsed
+    > .ant-menu-submenu
+    > .ant-menu-submenu-title {
+    padding: 0 20px !important;
+    margin: 0 4px !important;
+  }
+  ::v-deep .ant-menu-submenu {
+    margin-left: 8px;
+  }
+  .ant-menu-item-selected {
+    background-color: #0073ff !important;
+    border-radius: 25px;
+    color: #fff;
+  }
+  .ant-menu-vertical .ant-menu-item::after,
+  .ant-menu-vertical-left .ant-menu-item::after,
+  .ant-menu-vertical-right .ant-menu-item::after,
+  .ant-menu-inline .ant-menu-item::after {
+    border: none !important;
+  }
+}

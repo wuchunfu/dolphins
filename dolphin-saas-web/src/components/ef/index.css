@@ -1,0 +1,171 @@
+/*画布容器*/
+#efContainer {
+    position: relative;
+    height: 230px;
+    /* min-width: 1200px; */
+    padding:0 10px;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    flex: 1;
+    flex-shrink: 0;
+}
+
+/*顶部工具栏*/
+.ef-tooltar {
+    padding-left: 10px;
+    box-sizing: border-box;
+    height: 42px;
+    line-height: 42px;
+    z-index: 3;
+    border-bottom: 1px solid #DADCE0;
+}
+
+.jtk-overlay {
+    cursor: pointer;
+    color: #4A4A4A;
+}
+
+
+/*节点菜单*/
+.ef-node-pmenu {
+    cursor: pointer;
+    height: 32px;
+    line-height: 32px;
+    width: 225px;
+    display: block;
+    font-weight: bold;
+    color: #4A4A4A;
+    padding-left: 5px;
+}
+
+.ef-node-pmenu:hover {
+    background-color: #E0E0E0;
+}
+
+.ef-node-menu-li {
+    color: #565758;
+    width: 150px;
+    border: 1px dashed #E0E3E7;
+    margin: 5px 0 5px 0;
+    padding: 5px;
+    border-radius: 5px;
+    padding-left: 8px;
+}
+
+.ef-node-menu-li:hover {
+    /* 设置移动样式*/
+    cursor: move;
+    background-color: #F0F7FF;
+    border: 1px dashed #1879FF;
+    border-left: 4px solid #1879FF;
+    padding-left: 5px;
+}
+
+.ef-node-menu-ul {
+    list-style: none;
+    padding-left: 20px
+}
+
+/*节点的最外层容器*/
+.ef-node-container {
+    display: flex;
+    justify-content: space-between;
+    width: 170px;
+    height: 52px;
+    border: 1px solid #E0E3E7;
+    border-left: 4px solid #1879FF;
+    border-radius: 5px;
+    background-color: #fff;
+    margin: 10px 40px;
+}
+
+/* 备注内容 */
+.ef-node-info {
+    color: #7c7f81;
+    font-size: 12px;
+}
+
+/*节点显示的文字*/
+.ef-node-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    color: #565758;
+    font-size: 12px;
+    line-height: 1.2;
+    margin-left: 8px;
+    width: 100px;
+    font-weight:800;
+    /* 设置超出宽度文本显示方式*/
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+/*节点激活样式*/
+.ef-node-active {
+    background-color: #F0F7FF;
+    /*box-shadow: #1879FF 0px 0px 12px 0px;*/
+    background-color: #F0F7FF;
+    border: 1px solid #1879FF;
+}
+
+/*节点右侧的图标*/
+.ef-node-right-ico {
+    line-height: 32px;
+    margin-right: 10px;
+    color: #1879FF;
+    cursor: default;
+    font-size: 16px;
+}
+
+/*node-form*/
+.ef-node-form-header {
+    height: 32px;
+    border-top: 1px solid #dce3e8;
+    border-bottom: 1px solid #dce3e8;
+    background: #F1F3F4;
+    color: #000;
+    line-height: 32px;
+    padding-left: 12px;
+    font-size: 14px;
+}
+
+.ef-node-form-body {
+    margin-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 20px;
+}
+
+/* 连线中的label 样式*/
+.jtk-overlay.flowLabel:not(.aLabel) {
+    padding: 4px 10px;
+    background-color: white;
+    color: #565758 !important;
+    border: 1px solid #E0E3E7;
+    border-radius: 5px;
+}
+
+.ef-dot {
+    background-color: #1879FF;
+    border-radius: 10px;
+}
+
+.ef-dot-hover {
+    background-color: red;
+}
+
+.ef-rectangle {
+    background-color: #1879FF;
+}
+
+.ef-rectangle-hover {
+    background-color: red;
+}
+
+.ef-drop-hover{
+    border: 1px dashed #1879FF;
+}
