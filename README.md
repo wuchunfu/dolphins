@@ -47,3 +47,7 @@
 - 前端：刘权同学
 - 工具开发：张春杨同学
 - UI设计：鲁佳佳同学
+
+### 加我
+
+<img style="width:200px" title="Run example" alt="Run example" src="/wechat.png">
